@@ -1,0 +1,255 @@
+---
+title: "Williamsburg Bridge Poisson Regression"
+author: "Ryan Lebo"
+date: "2024-11-12"
+output: 
+  html_document:
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    fig_width: 4
+    fig_caption: yes
+    number_sections: yes
+    toc_collapsed: yes
+    code_folding: hide
+    code_download: yes
+    smooth_scroll: yes
+    theme: lumen
+  word_document:
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    keep_md: yes
+  pdf_document:
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    number_sections: yes
+    fig_width: 3
+    fig_height: 3
+editor_options:
+  chunk_output_type: inline
+slways_allow_html: true
+---
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: center;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+```{r setup, include=FALSE}
+# Detect, install, and load packages if needed.
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+if (!require("leaflet")) {
+   install.packages("leaflet")
+   library(leaflet)
+}
+if (!require("EnvStats")) {
+   install.packages("EnvStats")
+   library(EnvStats)
+}
+if (!require("MASS")) {
+   install.packages("MASS")
+   library(MASS)
+}
+if (!require("phytools")) {
+   install.packages("phytools")
+   library(phytools)
+}
+if (!require("mlbench")) {
+   install.packages("mlbench")
+   library(mlbench)
+}
+if (!require("pander")) {
+   install.packages("pander")
+   library(pander)
+}
+if (!require("ISwR")) {
+   install.packages("ISwR")
+   library(ISwR)
+}
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+knitr::opts_chunk$set(echo = FALSE,  
+                   warning = FALSE,  
+                                     
+                   message = FALSE,  
+                   results = TRUE,  
+                   comment = FALSE   
+                      )   
+```
+
+
+```{r}
+bikes <- read.csv("https://raw.githubusercontent.com/RyanLebo/STA-321/refs/heads/main/Data%20fileWilliamsburgBridge.csv", header = TRUE)
+```
+
+
+```{r}
+bikes$AvgTemp <- (bikes$HighTemp + bikes$LowTemp) / 2
+
+bikes$NewPrecip <- ifelse(bikes$Precipitation > 0, 1, 0)
+
+```
+
+# Introduction
+In this project we are going to fit the quasi-Poisson regression model on the counts of cyclists who entered and left the Williamsburg Bridge. We will report the value of the estimated dispersion parameter and based on the value determine whether the regular Poisson model or the quasi-Poisson should be used as the final model. Lastly, we will make a visualization to show the relationship between the number of cyclists who entered and left the bridge and the related predictor variables.
+
+## Data
+Here are all the variables in this project:
+
+* Date- observation ID
+* AvgTemp-(HighTemp + LowTemp)/2.
+* NewPrecip-if Precipitation = 0, then NewPrecip = 0; if Precipitation > 0, then NewPrecip = 1.
+* WilliamsburgBridge- bike count on the Williamsburg Bridge.
+* Total-Bike count of all bridges
+
+
+
+
+# Poisson Regression on Rates
+
+The following model assesses the potential relationship between biker count rates on the Williamsburg bridge and Date, AvgTemp, and NewPrecip,. This is the primary interest of the model. 
+
+```{r}
+model.rates <- glm(WilliamsburgBridge ~ Date + AvgTemp+ NewPrecip, offset = log(Total), 
+                   family = poisson(link = "log"), data = bikes)
+pander(summary(model.rates)$coef, caption = "Poisson regression on the rate of the 
+      the bike rate of people coming in and out of the bridge.")
+```
+
+The above table indicates that Date is not a good fit for this model due to its p-value. The coefficients represent the log change in expected count for a one unit increase in our predictor value. The log rates of NewPrecip were higher than any other variable since its absolute value is the highest out of all predictor variables. 
+
+
+## Quasi-Poisson Rate Model
+
+ The quasi-Poisson returns the dispersion coefficient.
+
+```{r}
+quasimodel.rates <- glm(WilliamsburgBridge ~ Date+ AvgTemp+ NewPrecip, offset = log(Total), 
+                   family = quasipoisson, data = bikes)
+pander(summary(quasimodel.rates)$coef, caption = "Quasi-Poisson regression on the rate of the bike rate of people coming in and out of the bridge.")
+
+```
+
+Looking at this table we can see that Date still is not a good predictor variable and we will have to take the variable out of the final model. In this model, Date still is the lowest estimate and NewPrecip is the highest of the predictor variables. AvgTemp is the most significant value based on p-value.
+
+The dispersion index can be extracted from the quasi-Poisson object with the following code
+
+```{r}
+ydif=bikes$WilliamsburgBridge-exp(model.rates$linear.predictors)  
+prsd = ydif/sqrt(exp(model.rates$linear.predictors))   
+phi = sum(prsd^2)/15           
+pander(cbind(Dispersion = phi))
+```
+
+The dispersion index is 7.451. This is a high number so there is over dispersion. This means that we stay with the Quasi-Poisson rate model.
+
+## Visuals
+
+These visuals below are to show the relationship between the number of cyclists who entered and left the bridge and their relation to AvgTemp, Date, and Precipitation.
+
+```{r}
+
+bikes$predict_b<- exp(5.036 - 0.00014*bikes$Date - 0.0014*bikes$AvgTemp - 0.0194*bikes$NewPrecip )
+ggplot(bikes, aes(x=AvgTemp, y=predict_b, color= factor(NewPrecip)))+ geom_line()+
+  scale_color_manual(values = c("red", "blue"), labels= c("No Precip","Precip")) + labs(title= "Date effect on Williamsburg Bridge bikers", x="Date", y= "Predicted bikers", color= "NewPrecip")+
+  theme_minimal()
+
+bikes$predict_b<- exp(5.036 - 0.00014*bikes$Date - 0.0014*bikes$AvgTemp - 0.0194*bikes$NewPrecip )
+ggplot(bikes, aes(x=Date, y=predict_b, color= factor(NewPrecip)))+ geom_line()+
+  scale_color_manual(values = c("red", "blue"), labels= c("No Precip","Precip")) + labs(title= "AvgTemp effect on Williamsburg Bridge bikers", x="AvgTemp", y= "Predicted bikers", color= "NewPrecip")+
+  theme_minimal()
+
+
+```
+
+Looking at these graphs you can see that both of their predicted bikers go down as the date passes. If you look at the other graph you will see that "no precipitation" has a higher average of predicted bikers than "precipitation". Precipitation effects both graphs in a big way. 
+
+
+# Discussions and Conclusions
+
+The quasi-poisson rate model based on the bike count is not appropriate since the information on the total biker count is a key variable in the study of WilliamsburgBridge distribution. Including the total biker count in the quasi-poisson rate model will reduce the statistical significance of AvgTemp and NewPrecip. See the following output of the fitted quasi-poisson rate model of Williamsburg Bridge bike count adjusted by total bike count.
+
+```{r}
+model.freq.pop <- glm(WilliamsburgBridge ~ AvgTemp+ NewPrecip+ log(Total), 
+                   family = quasipoisson, data = bikes)
+
+pois.count.coef.pop = summary(model.freq.pop)$coef
+kable(pois.count.coef.pop, caption = "The Poisson regression model for 
+         the counts of bikers versus the average temp, 
+         precipitation, and the total biker count.")
+```
+
+
+The log(Total) in bike rate is significantly higher than the other predictor variables . There should be more investigation in why the log(Total) is distributing the data.
+
+There is a negative linear relationship between AvgTemp and Date. The AvgTemp decreases as Date increase.
+
+The last statistical observation is that there is no interaction effect between the precip groups and nonprecip. The rate curves are "parallel".
+
+This is only a small data set with limited information. All conclusions in this report are only based on the given data set.
+
+
+
+
+
